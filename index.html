@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>QA Tracker V4</title>
+
+<style>
+
+:root{
+
+    --bg:#ffffff;
+    --card:#f4f4f4;
+    --text:#1a1a1a;
+    --border:#d0d0d0;
+
+    --blue:#2563eb;
+    --green:#16a34a;
+    --red:#dc2626;
+}
+
+@media
+(prefers-color-scheme:dark){
+
+    :root{
+
+        --bg:#121212;
+        --card:#1f1f1f;
+        --text:#f0f0f0;
+        --border:#404040;
+    }
+}
+
+body{
+
+    margin:0;
+    padding:15px;
+
+    font-family:Arial,sans-serif;
+
+    background:var(--bg);
+    color:var(--text);
+}
+
+.container{
+
+    max-width:700px;
+    margin:auto;
+}
+
+h1{
+
+    text-align:center;
+}
+
+input[type="text"]{
+
+    width:100%;
+
+    padding:10px;
+
+    box-sizing:border-box;
+
+    margin-bottom:10px;
+
+    border-radius:8px;
+}
+
+button{
+
+    padding:10px 14px;
+
+    border:none;
+
+    border-radius:8px;
+
+    color:white;
+
+    cursor:pointer;
+
+    font-weight:bold;
+}
+
+.btn-blue{
+
+    background:var(--blue);
+}
+
+.completeBtn{
+
+    background:#16a34a;
+
+    color:white;
+
+    border:none;
+
+    padding:8px 12px;
+
+    border-radius:8px;
+
+    font-weight:bold;
+
+    cursor:pointer;
+}
+
+.completeBtn:hover{
+
+    background:#15803d;
+}
+
+.deleteBtn{
+
+    background:#dc2626;
+
+    color:white;
+
+    border:none;
+
+    padding:8px 12px;
+
+    border-radius:8px;
+
+    font-weight:bold;
+
+    cursor:pointer;
+}
+
+.deleteBtn:hover{
+
+    background:#b91c1c;
+}
+
+.completedCard{
+
+    border-left:6px solid #16a34a;
+}
+
+.stats{
+
+    text-align:center;
+
+    margin:15px 0;
+
+    font-weight:bold;
+}
+
+.card{
+
+    background:var(--card);
+
+    border:1px solid
+    var(--border);
+
+    border-radius:10px;
+
+    padding:12px;
+
+    margin-bottom:10px;
+}
+
+.modal{
+
+    display:none;
+
+    position:fixed;
+
+    top:0;
+    left:0;
+
+    width:100%;
+    height:100%;
+
+    background:
+    rgba(0,0,0,.65);
+
+    justify-content:center;
+
+    align-items:center;
+
+    z-index:999;
+}
+
+.modalContent{
+
+    background:var(--card);
+
+    color:var(--text);
+
+    padding:20px;
+
+    width:90%;
+
+    max-width:500px;
+
+    border-radius:12px;
+}
+
+.modalContent textarea{
+
+    width:100%;
+
+    min-height:120px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>
+QA TRACKER
+</h1>
+
+<h3>
+Search
+</h3>
+
+<input
+id="searchBox"
+type="text"
+placeholder="Search Part Number">
+
+<div
+id="stats"
+class="stats">
+
+Open: 0 |
+Completed: 0
+
+</div>
+
+<label>
+
+<input
+type="checkbox"
+id="showCompleted">
+
+Show Completed
+
+</label>
+
+<hr>
+
+<h3>
+New QA
+</h3>
+
+<input
+id="partInput"
+type="text"
+placeholder="Part Number">
+
+<button
+id="addBtn"
+class="btn-blue">
+
+Add Part
+
+</button>
+
+<hr>
+
+<div
+id="cardContainer">
+
+</div>
+
+</div>
+
+<div
+id="detailsModal"
+class="modal">
+
+<div
+class="modalContent">
+
+<h2>
+QA Details
+</h2>
+
+<div
+id="modalBody">
+
+</div>
+
+<br>
+
+<button
+id="closeModalBtn"
+class="btn-blue">
+
+Close
+
+</button>
+
+</div>
+
+</div>
+
+<script type="module">
+
+import {
+  initializeApp
+} from
+"https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  updateDoc,
+  deleteDoc,
+  doc
+}
+from
+"https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+const firebaseConfig = {
+
+  apiKey:
+  "AIzaSyCeGr-6TxpiuFBtgLuVKAM6FqhOpnBrJI",
+
+  authDomain:
+  "qa-tracker-8ddae.firebaseapp.com",
+
+  projectId:
+  "qa-tracker-8ddae",
+
+  storageBucket:
+  "qa-tracker-8ddae.firebasestorage.app",
+
+  messagingSenderId:
+  "1098822937508",
+
+  appId:
+  "1:1098822937508:web:d12c5073173faf38f7af31",
+
+  measurementId:
+  "G-FM5C5S2DNM"
+};
+
+const app =
+initializeApp(firebaseConfig);
+
+const db =
+getFirestore(app);
+
+function renderFirestoreData(snapshot){
+
+    const container =
+
+    document.getElementById(
+        "cardContainer"
+    );
+
+    container.innerHTML = "";
+	
+	let openCount = 0;
+	
+	const showCompleted =
+
+	document
+	.getElementById(
+		"showCompleted"
+)
+.checked;
+
+const searchText =
+
+document
+.getElementById(
+    "searchBox"
+)
+.value
+.toLowerCase()
+.trim();
+
+	let completedCount = 0;
+
+	snapshot.forEach(
+
+    (docItem)=>{
+
+        const data =
+        docItem.data();
+		
+		if(
+
+    searchText
+
+    &&
+
+    !data.part
+    .toLowerCase()
+    .includes(
+        searchText
+    )
+
+){
+
+    return;
+}
+		
+		if(
+
+    !showCompleted
+
+    &&
+
+    data.status ===
+    "Completed"
+
+){
+
+    completedCount++;
+
+    return;
+}
+		
+		if(data.status === "Completed"){
+
+			completedCount++;
+
+}
+else{
+
+    openCount++;
+
+}
+
+
+        const div =
+        document.createElement(
+            "div"
+        );
+
+		div.className =
+
+		data.status === "Completed"
+
+		?
+
+		"card completedCard"
+
+		:
+
+		"card";
+		
+		div.style.cursor =
+		"pointer";
+
+        div.innerHTML =
+
+`
+<div
+style="
+font-size:22px;
+font-weight:bold;
+margin-bottom:10px;
+">
+
+${data.part || "No Part"}
+
+</div>
+
+<div>
+Status:
+${data.status}
+</div>
+
+<div>
+Date:
+${data.submitted || "Not Set"}
+</div>
+
+<div
+style="
+margin-top:10px;
+">
+
+${data.notes || "No Notes"}
+
+</div>
+
+<div
+style="
+margin-top:12px;
+display:flex;
+gap:10px;
+">
+
+<button
+class="completeBtn"
+data-id="${docItem.id}">
+
+${data.status === "Completed"
+? "Reopen"
+: "Complete"}
+
+</button>
+
+<button
+class="deleteBtn"
+data-id="${docItem.id}">
+
+Delete
+
+</button>
+
+</div>
+`;
+
+div.onclick = ()=>{
+
+    currentDocId =
+    docItem.id;
+
+    document
+    .getElementById(
+        "modalBody"
+    )
+
+    document
+    .getElementById(
+        "modalBody"
+    )
+    .innerHTML =
+
+    `
+    <b>Part:</b>
+    ${data.part}
+
+    <br><br>
+
+    <b>Status:</b>
+    ${data.status}
+
+    <br><br>
+
+    <b>Created:</b>
+    ${data.createdDate || ""}
+
+    <br><br>
+
+    <b>Completed:</b>
+    ${data.completedDate || ""}
+
+    <br><br>
+
+	<b>Submitted Date:</b>
+
+	<br><br>
+
+	<input
+	type="date"
+	id="submittedDate"
+
+	value="${data.submitted || ""}">
+
+	<br><br>
+
+	<button
+	id="saveDateBtn"
+	class="btn-blue">
+
+	Save Date
+
+	</button>
+
+    <br><br>
+
+	<b>Notes:</b>
+
+	<br><br>
+
+	<textarea
+	id="notesEditor">
+
+	${data.notes || ""}
+
+	</textarea>
+
+	<br><br>
+
+	<button
+	id="saveNotesBtn"
+	class="btn-blue">
+
+	Save Notes
+
+	</button>
+
+    `;
+
+    document
+    .getElementById(
+        "detailsModal"
+    )
+    .style.display =
+    "flex";
+	
+	document
+.getElementById(
+    "saveDateBtn"
+)
+.onclick = async ()=>{
+
+    await updateDoc(
+
+        doc(
+            db,
+            "qaItems",
+            currentDocId
+        ),
+
+        {
+
+            submitted:
+
+            document
+            .getElementById(
+                "submittedDate"
+            )
+            .value,
+
+            lastUpdated:
+            Date.now()
+
+        }
+
+    );
+
+};
+	
+	document
+.getElementById(
+    "saveNotesBtn"
+)
+.onclick = async ()=>{
+
+    await updateDoc(
+
+        doc(
+            db,
+            "qaItems",
+            currentDocId
+        ),
+
+        {
+
+            notes:
+
+            document
+            .getElementById(
+                "notesEditor"
+            )
+            .value,
+
+            lastUpdated:
+            Date.now()
+
+        }
+
+    );
+
+};
+
+};
+
+        container
+        .appendChild(div);
+		
+		div
+.querySelector(".deleteBtn")
+.onclick = async (e)=>{
+
+    e.stopPropagation();
+
+    const confirmDelete =
+    confirm(
+        "Delete this QA item?"
+    );
+
+    if(!confirmDelete){
+        return;
+    }
+
+    await deleteDoc(
+
+        doc(
+            db,
+            "qaItems",
+            docItem.id
+        )
+
+    );
+
+};
+
+div
+.querySelector(".completeBtn")
+.onclick = async (e)=>{
+
+    e.stopPropagation();
+
+    const newStatus =
+
+    data.status ===
+    "Completed"
+
+    ?
+
+    "Open"
+
+    :
+
+    "Completed";
+
+    await updateDoc(
+
+        doc(
+            db,
+            "qaItems",
+            docItem.id
+        ),
+
+        {
+
+            status:
+            newStatus,
+
+            completedDate:
+
+            newStatus ===
+            "Completed"
+
+            ?
+
+            new Date()
+            .toLocaleString()
+
+            :
+
+            "",
+
+            lastUpdated:
+            Date.now()
+
+        }
+
+    );
+
+};
+
+    });
+	
+	document
+	.getElementById("stats")
+	.innerHTML =
+
+	`Open: ${openCount} |
+	Completed: ${completedCount}`;
+
+}
+
+let currentSnapshot = null;
+
+let currentDocId = null;
+
+onSnapshot(
+
+    collection(
+        db,
+        "qaItems"
+    ),
+
+    (snapshot)=>{
+
+        currentSnapshot =
+        snapshot;
+
+        renderFirestoreData(
+            snapshot
+        );
+
+    }
+
+);
+
+document
+.getElementById(
+    "showCompleted"
+)
+.addEventListener(
+
+    "change",
+
+    ()=>{
+
+        if(currentSnapshot){
+
+            renderFirestoreData(
+                currentSnapshot
+            );
+
+        }
+
+    }
+
+);
+
+document
+.getElementById(
+    "closeModalBtn"
+)
+.onclick = ()=>{
+
+    document
+    .getElementById(
+        "detailsModal"
+    )
+    .style.display =
+    "none";
+
+};
+
+document
+.getElementById(
+    "searchBox"
+)
+.addEventListener(
+
+    "input",
+
+    ()=>{
+
+        if(currentSnapshot){
+
+            renderFirestoreData(
+                currentSnapshot
+            );
+
+        }
+
+    }
+
+);
+
+document
+.getElementById(
+    "closeModalBtn"
+)
+.onclick = ()=>{
+
+    document
+    .getElementById(
+        "detailsModal"
+    )
+    .style.display =
+    "none";
+
+};
+
+document
+.getElementById("addBtn")
+.onclick =
+async function(){
+
+    const part =
+
+    document
+    .getElementById(
+        "partInput"
+    )
+    .value
+    .trim();
+
+    if(!part){
+
+        alert(
+        "Enter a part number."
+        );
+
+        return;
+    }
+
+    await addDoc(
+
+        collection(
+            db,
+            "qaItems"
+        ),
+
+        {
+            part: part,
+            submitted: "",
+            notes: "",
+            status: "Open",
+            createdDate:
+                new Date()
+                .toLocaleString(),
+            completedDate: "",
+            lastUpdated:
+                Date.now()
+        }
+
+    );
+
+    document
+    .getElementById(
+        "partInput"
+    )
+    .value = "";
+
+};
+
+console.log(
+"Firebase Connected!"
+);
+
+</script>
+
+
+</body>
+
+</html>
